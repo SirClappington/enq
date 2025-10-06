@@ -1,0 +1,21 @@
+.PHONY: dev up down migrate seed test
+
+
+dev: up migrate
+air || true
+
+
+up:
+docker compose up -d --build
+
+
+down:
+docker compose down -v
+
+
+migrate:
+bash scripts/migrate.sh
+
+
+test:
+go test ./...
