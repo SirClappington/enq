@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +16,11 @@ import (
 	"github.com/SirClappington/enq/internal/config"
 	"github.com/SirClappington/enq/internal/queue"
 	"github.com/SirClappington/enq/internal/storage"
+)
+
+var (
+	version = "dev"
+	commit  = "none"
 )
 
 type EnqueueReq struct {
@@ -122,6 +128,7 @@ func writeUnauthorized(w http.ResponseWriter, errCode, desc string) {
 
 func main() {
 	cfg := config.Load()
+	log.Printf("Enq API starting — version=%s commit=%s", version, commit)
 	ctx := context.Background()
 
 	db, err := pgxpool.New(ctx, cfg.PostgresDSN)

@@ -1,43 +1,92 @@
-version: '3.9'
 services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_USER: enq
-      POSTGRES_PASSWORD: enq
-      POSTGRES_DB: enq
-    ports: ["5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
+      POSTGRES_USER: ${POSTGRES_USER:-enq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-enq}
+      POSTGRES_DB: ${POSTGRES_DB:-enq}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-enq} -d ${POSTGRES_DB:-enq}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7
-    ports: ["6379:6379"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   api:
-    build: .
-    command: ["go", "run", "./cmd/api"]
-    env_file: [.env]
+    # GHCR:
+    # image: ghcr.io/sirclappington/enq-api:latest
+    # Docker Hub:
+    image: sirclappington/enq-api:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
     environment:
-      POSTGRES_DSN: postgres://enq:enq@postgres:5432/enq?sslmode=disable
+      POSTGRES_DSN: postgres://${POSTGRES_USER:-enq}:${POSTGRES_PASSWORD:-enq}@postgres:5432/${POSTGRES_DB:-enq}?sslmode=disable
       REDIS_ADDR: redis:6379
-    depends_on: [postgres, redis]
-    ports: ["8080:8080"]
+      API_ADDR: :8080
+      # TZ: America/New_York
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Optional healthcheck ONLY if your binary supports it (distroless has no shell):
+    # healthcheck:
+    #   test: ["CMD", "/enq", "health"]
+    #   interval: 10s
+    #   timeout: 3s
+    #   retries: 10
 
   scheduler:
-    build: .
-    command: ["go", "run", "./cmd/scheduler"]
-    env_file: [.env]
+    # GHCR:
+    # image: ghcr.io/sirclappington/enq-scheduler:latest
+    # Docker Hub:
+    image: sirclappington/enq-scheduler:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      POSTGRES_DSN: postgres://enq:enq@postgres:5432/enq?sslmode=disable
+      POSTGRES_DSN: postgres://${POSTGRES_USER:-enq}:${POSTGRES_PASSWORD:-enq}@postgres:5432/${POSTGRES_DB:-enq}?sslmode=disable
       REDIS_ADDR: redis:6379
-    depends_on: [postgres, redis]
-
-  web:
-    build:
-      context: ./web
-    environment:
-      NEXT_PUBLIC_API_BASE: http://localhost:8080
-    ports: ["3000:3000"]
+      # TZ: America/New_York
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   pgdata: {}
+  redisdata: {}

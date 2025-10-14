@@ -1,0 +1,110 @@
+name: Publish Docker images
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build/push (e.g., v0.1.2)"
+        required: false
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # needed if pushing to GHCR
+    env:
+      # flip to "true" to also push to GHCR (set GHCR_TOKEN secret first)
+      PUSH_GHCR: "true"
+      GHCR_OWNER: "sirclappington"
+      DOCKERHUB_NAMESPACE: "dclaywell"
+
+    strategy:
+      matrix:
+        component: [api, scheduler]
+        include:
+          - component: api
+            image_dh: ${{ env.DOCKERHUB_NAMESPACE }}/enq-api
+            image_gh: ghcr.io/${{ env.GHCR_OWNER }}/enq-api
+            dockerfile: cmd/api/Dockerfile
+            context: .
+          - component: scheduler
+            image_dh: ${{ env.DOCKERHUB_NAMESPACE }}/enq-scheduler
+            image_gh: ghcr.io/${{ env.GHCR_OWNER }}/enq-scheduler
+            dockerfile: cmd/scheduler/Dockerfile
+            context: .
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute tag/version
+        id: vars
+        shell: bash
+        run: |
+          if [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: (Optional) Login to GHCR
+        if: env.PUSH_GHCR == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ env.GHCR_OWNER }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Docker metadata (${{ matrix.component }})
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ matrix.image_dh }}
+            ${{ env.PUSH_GHCR == 'true' && matrix.image_gh || '' }}
+          tags: |
+            type=raw,value=${{ steps.vars.outputs.tag }}
+            type=raw,value=latest
+            type=raw,value=${{ steps.vars.outputs.sha_short }}
+          labels: |
+            org.opencontainers.image.title=enq-${{ matrix.component }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.vars.outputs.tag }}
+
+      # Build cache (GitHub cache backend)
+      - name: Build and push ${{ matrix.component }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # pass build args into your Go build if you wire them in your Dockerfile
+          build-args: |
+            VERSION=${{ steps.vars.outputs.tag }}
+            COMMIT=${{ steps.vars.outputs.sha_short }}
+          # Optional: toggle if your older Dockerfile/tooling complains
+          # provenance: false
+          # sbom: false

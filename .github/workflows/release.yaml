@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to create releases
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate release notes
+        id: notes
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          configurationJson: |
+            {
+              "template": "# 🚀 Enq ${NEXT_TAG}\n\n## Changes\n${RELEASE_NOTES}\n",
+              "categories": [
+                { "title": "✨ Features", "labels": ["feat", "feature"] },
+                { "title": "🐛 Fixes",    "labels": ["fix", "bug", "bugfix"] },
+                { "title": "🧹 Chore",    "labels": ["chore", "deps", "docs"] }
+              ],
+              "pr_template": "- #${NUMBER} ${TITLE} (@${AUTHOR})",
+              "empty_template": "No notable changes."
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.changelog }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Optional: attach helpful files (compose, sample env)
+      - name: Upload compose.yaml
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            docker-compose.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,19 @@
+# Go
+**/bin
+**/dist
+**/coverage
+**/*.test
+**/*.out
+**/*.prof
+**/.DS_Store
+
+# Git/IDE
+.git
+.github
+.vscode
+.idea
+
+# Node
+node_modules
+.next
+out
