@@ -17,7 +17,6 @@ jobs:
       contents: read
       packages: write   # needed for GHCR
 
-    # Safe to use in steps (not in matrix)
     env:
       # Flip to "true" to also push to GHCR
       PUSH_GHCR: "true"
@@ -28,16 +27,13 @@ jobs:
       matrix:
         include:
           - component: api
-            dockerfile: cmd/api/Dockerfile
-            context: .
+            build_path: ./cmd/api        # <-- optional; keep if your Dockerfile uses BUILD_PATH
           - component: scheduler
-            dockerfile: cmd/scheduler/Dockerfile
-            context: .
+            build_path: ./cmd/scheduler  # <-- optional; keep if your Dockerfile uses BUILD_PATH
 
     steps:
       - uses: actions/checkout@v4
 
-      # Check whether Docker Hub secrets exist; we'll skip DH login & images if not.
       - name: Check Docker Hub secrets
         id: dhcheck
         run: |
@@ -68,7 +64,6 @@ jobs:
           IMAGE_DH="${DOCKERHUB_NAMESPACE}/enq-${{ matrix.component }}"
           IMAGE_GH="ghcr.io/${GHCR_OWNER}/enq-${{ matrix.component }}"
 
-          # Expose single-image outputs
           if [[ "${DH_PRESENT}" == "true" ]]; then
             echo "image_dh=${IMAGE_DH}" >> "$GITHUB_OUTPUT"
           fi
@@ -76,7 +71,6 @@ jobs:
             echo "image_gh=${IMAGE_GH}" >> "$GITHUB_OUTPUT"
           fi
 
-          # Build the multi-line `images` output for docker/metadata-action
           {
             echo 'images<<EOF'
             if [[ "${DH_PRESENT}" == "true" ]]; then
@@ -88,7 +82,6 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-          # If neither DH nor GHCR is selected, fail early with a clear message
           if [[ "${DH_PRESENT}" != "true" && "${PUSH_GHCR}" != "true" ]]; then
             echo "No registry selected: Docker Hub secrets missing and PUSH_GHCR != true." >&2
             exit 1
@@ -133,8 +126,8 @@ jobs:
       - name: Build and push ${{ matrix.component }}
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: .                 # <-- root of repo
+          file: ./Dockerfile         # <-- single root Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -144,5 +137,7 @@ jobs:
           build-args: |
             VERSION=${{ steps.vars.outputs.tag }}
             COMMIT=${{ steps.vars.outputs.sha_short }}
+            COMPONENT=${{ matrix.component }}     # optional if your Dockerfile reads this
+            BUILD_PATH=${{ matrix.build_path }}   # optional if your Dockerfile reads this
           # provenance: false
           # sbom: false
