@@ -2,8 +2,9 @@ name: Publish Docker images
 
 on:
   push:
+    branches: [ main ]         # keep the badge green on main
     tags:
-      - "v*.*.*"
+      - "v*.*.*"               # real publishes happen on tags
   workflow_dispatch:
     inputs:
       tag:
@@ -11,7 +12,16 @@ on:
         required: false
 
 jobs:
+  # This runs on main pushes only, so the workflow shows ✅ for the badge.
+  status-on-main:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No publish on branch builds; badge check only."
+
   build-and-push:
+    # Real publish ONLY when the ref is a tag (or when tag is provided via workflow_dispatch)
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,9 +37,9 @@ jobs:
       matrix:
         include:
           - component: api
-            build_path: ./cmd/api        # <-- optional; keep if your Dockerfile uses BUILD_PATH
+            build_path: ./cmd/api        # optional; keep if your Dockerfile uses BUILD_PATH
           - component: scheduler
-            build_path: ./cmd/scheduler  # <-- optional; keep if your Dockerfile uses BUILD_PATH
+            build_path: ./cmd/scheduler  # optional; keep if your Dockerfile uses BUILD_PATH
 
     steps:
       - uses: actions/checkout@v4
@@ -126,8 +136,8 @@ jobs:
       - name: Build and push ${{ matrix.component }}
         uses: docker/build-push-action@v6
         with:
-          context: .                 # <-- root of repo
-          file: ./Dockerfile         # <-- single root Dockerfile
+          context: .
+          file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -137,7 +147,7 @@ jobs:
           build-args: |
             VERSION=${{ steps.vars.outputs.tag }}
             COMMIT=${{ steps.vars.outputs.sha_short }}
-            COMPONENT=${{ matrix.component }}     # optional if your Dockerfile reads this
-            BUILD_PATH=${{ matrix.build_path }}   # optional if your Dockerfile reads this
+            COMPONENT=${{ matrix.component }}
+            BUILD_PATH=${{ matrix.build_path }}
           # provenance: false
           # sbom: false
