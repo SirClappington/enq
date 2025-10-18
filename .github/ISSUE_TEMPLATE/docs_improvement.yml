@@ -1,0 +1,27 @@
+name: Docs improvement
+description: Fix or improve documentation
+title: "docs: <area to improve>"
+labels: ["docs"]
+assignees: []
+body:
+  - type: textarea
+    id: location
+    attributes:
+      label: Where
+      description: File/section link (README, docs/architecture.svg, etc.)
+      placeholder: e.g., README#Getting-Started
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested change
+      description: Provide the proposed wording/snippet if possible
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why this change helps (clarity, correctness, examples)

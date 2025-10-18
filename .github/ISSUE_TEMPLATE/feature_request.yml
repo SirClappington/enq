@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose an enhancement or new capability
+title: "feat: <one-liner>"
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tell us what you’re trying to achieve and why it matters.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What’s the use case or limitation?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the UX/API/config. Examples welcome.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways you could solve this?
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact / scope
+      description: Affected components (api, scheduler, docs, CI), breaking changes?
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I’m willing to help implement this
+        - label: I’ve checked existing issues/PRs for overlap
+          required: true
