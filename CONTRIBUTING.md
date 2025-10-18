@@ -245,9 +245,7 @@ Security
 
 Please do not file public issues for sensitive vulnerabilities. Report privately via:
 
-Email: [REPLACE-ME] (e.g., security@sirclappington.com)
-
-Or open a private GitHub security advisory
+Open a private GitHub security advisory
 
 See SECURITY.md if present.
 
