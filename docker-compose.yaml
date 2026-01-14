@@ -40,7 +40,7 @@ services:
     # GHCR:
     # image: ghcr.io/sirclappington/enq-api:latest
     # Docker Hub:
-    image: sirclappington/enq-api:latest
+    image: dclaywell/enq-api:latest
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,7 +70,7 @@ services:
     # GHCR:
     # image: ghcr.io/sirclappington/enq-scheduler:latest
     # Docker Hub:
-    image: sirclappington/enq-scheduler:latest
+    image: dclaywell/enq-scheduler:latest
     depends_on:
       postgres:
         condition: service_healthy
